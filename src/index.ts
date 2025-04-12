@@ -86,13 +86,13 @@ app.post(
           session.id
         );
 
-        const nickname =
-          lineItems.data[0]?.price?.nickname?.toLowerCase() ?? "30days";
+        const description = lineItems.data[0]?.description?.toLowerCase() ?? "";
+        console.log("Line item description:", description);
 
-        let durationDays = 0;
-        if (nickname.includes("7")) durationDays = 7;
-        else if (nickname.includes("30")) durationDays = 30;
-        else if (nickname.includes("year")) durationDays = 365;
+        let durationDays = 30;
+        if (description.includes("7")) durationDays = 7;
+        else if (description.includes("30")) durationDays = 30;
+        else if (description.includes("year")) durationDays = 365;
 
         const expiresAt = Math.floor(Date.now() / 1000) + durationDays * 86400;
 
