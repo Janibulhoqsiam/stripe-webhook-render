@@ -22,6 +22,62 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 const app = express();
 
+///////////////////////////////////////
+// Middleware to parse JSON
+
+
+
+// Middleware to parse JSON
+app.use(express.json());
+
+// Endpoint to handle fetching session data
+app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
+  const { session_id } = req.query;
+
+  if (!session_id || typeof session_id !== "string") {
+    return res.status(400).json({ success: false, message: "Session ID is required" });
+  }
+
+  try {
+    // Retrieve the session details from Stripe
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+
+    // Extract customer information
+    const customerDetails = {
+      name: session.customer_details?.name ?? "Anonymous",
+      email: session.customer_details?.email ?? "No email found",
+    };
+
+    // Query Firestore using the email to get the document ID
+    const userQuerySnapshot = await db.collection("tokens").where("email", "==", customerDetails.email).get();
+
+    if (userQuerySnapshot.empty) {
+      return res.status(404).json({ success: false, message: "No user found with this email" });
+    }
+
+    // Assuming there's only one document per email
+    const userDoc = userQuerySnapshot.docs[0]; // Get the first matching document
+    const documentId = userDoc.id;  // Get the document ID
+
+    // Combine Firestore document ID with the customer details
+    const result = {
+      ...customerDetails,
+      documentId: documentId, // Add document ID to the response
+    };
+
+    // Send the customer details along with the Firestore document ID to the frontend
+    res.json({ success: true, customerDetails: result });
+  } catch (error) {
+    console.error("Error fetching session or Firestore document:", error);
+    res.status(500).json({ success: false, message: "Error fetching session or Firestore document" });
+  }
+
+}
+
+);
+
+
+///////////////////////////////////////
 // Stripe requires the raw body to validate webhook signatures
 app.post(
   "/webhook",
