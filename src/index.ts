@@ -77,7 +77,6 @@ app.post(
       const email = session.customer_details?.email;
 
       if (!email) {
-        console.error("No email found in session.");
         res.status(400).send("Email not found");
         return;
       }
@@ -86,21 +85,18 @@ app.post(
         const lineItems = await stripe.checkout.sessions.listLineItems(
           session.id
         );
-        const itemName =
-          lineItems.data[0]?.description?.toLowerCase() ?? "30days";
 
-        let durationDays = 30; // default
-        if (itemName.includes("7")) durationDays = 7;
-        else if (itemName.includes("30")) durationDays = 30;
-        else if (itemName.includes("year")) durationDays = 365;
+        const nickname =
+          lineItems.data[0]?.price?.nickname?.toLowerCase() ?? "30days";
+
+        let durationDays = 0;
+        if (nickname.includes("7")) durationDays = 7;
+        else if (nickname.includes("30")) durationDays = 30;
+        else if (nickname.includes("year")) durationDays = 365;
 
         const expiresAt = Math.floor(Date.now() / 1000) + durationDays * 86400;
 
-        console.log("Email:", email);
-        console.log("Duration (days):", durationDays);
-        console.log("Expires At:", expiresAt);
-
-        const docRef = await db.collection("tokens").add({
+        await db.collection("tokens").add({
           email,
           deviceId: "",
           expiresAt,
@@ -108,11 +104,10 @@ app.post(
           isTrial: false,
         });
 
-        console.log("Firestore doc created with ID:", docRef.id);
-      } catch (error) {
-        console.error("Error processing session:", error);
-        res.status(500).send("Internal error");
-        return;
+        res.status(200).send("Success");
+      } catch (err) {
+        console.error("Webhook error:", err);
+        res.status(500).send("Error processing webhook");
       }
     }
 
