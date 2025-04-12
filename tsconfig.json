@@ -84,7 +84,7 @@
     // "preserveSymlinks": true,                         /* Disable resolving symlinks to their realpath. This correlates to the same flag in node. */
     "forceConsistentCasingInFileNames": true,
     "rootDir": "src",
-    "outDir": "dist",           /* Ensure that casing is correct in imports. */
+    "outDir": "./dist",           /* Ensure that casing is correct in imports. */
 
     /* Type Checking */
     "strict": true,                                      /* Enable all strict type-checking options. */
