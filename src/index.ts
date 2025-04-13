@@ -3,6 +3,8 @@ import Stripe from "stripe";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import dotenv from "dotenv";
+import cors from 'cors';
+
 
 dotenv.config();
 
@@ -22,12 +24,13 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 const app = express();
 
+// Allow requests from your frontend domain
+app.use(cors({
+  origin: 'https://subscribe.lamboliveagency.com',
+  methods: ['GET', 'POST'],
+}))
+
 ///////////////////////////////////////
-// Middleware to parse JSON
-
-
-
-// Middleware to parse JSON
 
 // Endpoint to handle fetching session data
 app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
@@ -76,7 +79,7 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
 );
 
 
-
+app.use(express.json());
 ///////////////////////////////////////
 // Stripe requires the raw body to validate webhook signatures
 app.post(
@@ -138,7 +141,5 @@ app.post(
     res.status(200).send("Webhook received");
   }
 );
-
-app.use(express.json());
 
 app.listen(3000, () => console.log("Running on http://localhost:3000"));
