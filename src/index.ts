@@ -75,8 +75,6 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
 
 );
 
-app.use(express.json());
-
 
 
 ///////////////////////////////////////
@@ -96,39 +94,6 @@ app.post(
       res.status(400).send(`Webhook Error: ${err.message}`);
       return;
     }
-
-    // ✅ Handle completed checkout sessions
-    // if (event.type === "checkout.session.completed") {
-    //   const session = event.data.object as Stripe.Checkout.Session;
-    //   const email = session.customer_details?.email;
-    //   const expiresAt = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60; // 30 days
-
-    //   if (!email) {
-    //     console.error("No email found in session.");
-    //     res.status(400).send("Email not found");
-    //     return;
-    //   }
-
-    //   console.log("Creating Firestore document...");
-    //   console.log("Email:", email);
-    //   console.log("Expires At:", expiresAt);
-
-    //   try {
-    //     const docRef = await db.collection("tokens").add({
-    //       email,
-    //       deviceId: "",
-    //       expiresAt,
-    //       isRadioOff: false,
-    //       isTrial: true,
-    //     });
-
-    //     console.log("Firestore doc created with ID:", docRef.id);
-    //   } catch (error) {
-    //     console.error("Error creating Firestore document:", error);
-    //     res.status(500).send("Error creating Firestore document");
-    //     return;
-    //   }
-    // }
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -173,5 +138,7 @@ app.post(
     res.status(200).send("Webhook received");
   }
 );
+
+app.use(express.json());
 
 app.listen(3000, () => console.log("Running on http://localhost:3000"));
