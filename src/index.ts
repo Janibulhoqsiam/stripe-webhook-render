@@ -98,7 +98,7 @@ app.post(
       return;
     }
 
-    if (event.type === "checkout.session.completed") {
+    if (event.type === "checkout.session.completed" || event.type === "payment_intent.succeeded") {
       const session = event.data.object as Stripe.Checkout.Session;
       const email = session.customer_details?.email;
 
