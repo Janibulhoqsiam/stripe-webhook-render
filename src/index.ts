@@ -28,7 +28,6 @@ const app = express();
 
 
 // Middleware to parse JSON
-app.use(express.json());
 
 // Endpoint to handle fetching session data
 app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
@@ -75,6 +74,9 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
 }
 
 );
+
+app.use(express.json());
+
 
 
 ///////////////////////////////////////
