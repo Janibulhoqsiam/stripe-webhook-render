@@ -24,6 +24,71 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 const app = express();
 
+
+///////////////////////////////////////
+// Stripe requires the raw body to validate webhook signatures
+app.post("/webhook",express.raw({ type: "application/json" }),
+  async (req: Request, res: Response): Promise<void> => {
+    const sig = req.headers["stripe-signature"] as string | undefined;
+
+    let event: Stripe.Event;
+
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig!, endpointSecret);
+    } catch (err: any) {
+      console.error("Webhook Error:", err.message);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+      return;
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const email = session.customer_details?.email;
+
+      if (!email) {
+        res.status(400).send("Email not found");
+        return;
+      }
+
+      try {
+        const lineItems = await stripe.checkout.sessions.listLineItems(
+          session.id
+        );
+
+        const description = lineItems.data[0]?.description?.toLowerCase() ?? "";
+        console.log("Line item description:", description);
+
+        let durationDays = 30;
+        if (description.includes("7")) durationDays = 7;
+        else if (description.includes("30")) durationDays = 30;
+        else if (description.includes("year")) durationDays = 365;
+
+        const expiresAt = Math.floor(Date.now() / 1000) + durationDays * 86400;
+
+        await db.collection("tokens").add({
+          email,
+          deviceId: "",
+          expiresAt,
+          isRadioOff: false,
+          isTrial: false,
+        });
+
+        res.status(200).send("Success");
+      } catch (err) {
+        console.error("Webhook error:", err);
+        res.status(500).send("Error processing webhook");
+      }
+    }
+
+    // ✅ Always send a response to Stripe
+    res.status(200).send("Webhook received");
+  }
+);
+
+app.use(express.json());
+
+
+
 // Allow requests from your frontend domain
 app.use(cors({
   origin: 'https://subscribe.lamboliveagency.com',
@@ -79,67 +144,6 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
 );
 
 
-app.use(express.json());
-///////////////////////////////////////
-// Stripe requires the raw body to validate webhook signatures
-app.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  async (req: Request, res: Response): Promise<void> => {
-    const sig = req.headers["stripe-signature"] as string | undefined;
 
-    let event: Stripe.Event;
-
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig!, endpointSecret);
-    } catch (err: any) {
-      console.error("Webhook Error:", err.message);
-      res.status(400).send(`Webhook Error: ${err.message}`);
-      return;
-    }
-
-    if (event.type === "checkout.session.completed" || event.type === "payment_intent.succeeded") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const email = session.customer_details?.email;
-
-      if (!email) {
-        res.status(400).send("Email not found");
-        return;
-      }
-
-      try {
-        const lineItems = await stripe.checkout.sessions.listLineItems(
-          session.id
-        );
-
-        const description = lineItems.data[0]?.description?.toLowerCase() ?? "";
-        console.log("Line item description:", description);
-
-        let durationDays = 30;
-        if (description.includes("7")) durationDays = 7;
-        else if (description.includes("30")) durationDays = 30;
-        else if (description.includes("year")) durationDays = 365;
-
-        const expiresAt = Math.floor(Date.now() / 1000) + durationDays * 86400;
-
-        await db.collection("tokens").add({
-          email,
-          deviceId: "",
-          expiresAt,
-          isRadioOff: false,
-          isTrial: false,
-        });
-
-        res.status(200).send("Success");
-      } catch (err) {
-        console.error("Webhook error:", err);
-        res.status(500).send("Error processing webhook");
-      }
-    }
-
-    // ✅ Always send a response to Stripe
-    res.status(200).send("Webhook received");
-  }
-);
 
 app.listen(3000, () => console.log("Running on http://localhost:3000"));
