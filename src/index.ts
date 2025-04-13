@@ -145,5 +145,35 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
 
 
 
+app.post("/create-trial-subscription", async (req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [
+        {
+          price: "price_1RDRqOAYZ3Va2rSedstDU6xM", // replace with your actual Stripe price ID
+          quantity: 1,
+        },
+      ],
+      subscription_data: {
+        trial_period_days: 7,
+      },
+      metadata: {
+        duration: "7", // optional if used in webhook
+      },
+      success_url: `https://subscribe.lamboliveagency.com/thank-you/?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://subscribe.lamboliveagency.com/thank-you/`,
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error("Stripe session creation error:", err);
+    res.status(500).json({ error: "Failed to create checkout session" });
+  }
+});
+
+
+
+
 
 app.listen(3000, () => console.log("Running on http://localhost:3000"));
