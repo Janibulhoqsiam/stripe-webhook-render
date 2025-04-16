@@ -237,7 +237,7 @@ app.post("/create-trial-subscription", async (req, res) => {
       mode: "subscription",
       line_items: [
         {
-          price: "price_1RDRqOAYZ3Va2rSedstDU6xM", // replace with your actual Stripe price ID
+          price: "price_1REdBNAYZ3Va2rSeqnjqgMP7", // replace with your actual Stripe price ID
           quantity: 1,
         },
       ],
