@@ -163,8 +163,12 @@ app.get("/api/paystack-confirmation", async (req: Request, res: Response): Promi
 
 
 
+
+
     const email = (paystackRes.data as { customer: { email: string } }).customer.email;
     const name = (paystackRes.data as { name: string }).name;
+    console.log(email)
+    console.log(name)
 
       // Extract customer information
     const paystackApiDetails = {
