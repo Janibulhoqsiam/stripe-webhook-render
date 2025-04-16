@@ -199,7 +199,7 @@ app.get("/api/paystack-confirmation", async (req: Request, res: Response): Promi
     };
 
 
-    res.json({ success: true, customerDetails: result });
+    res.json({ success: true, paystackApiDetails: result });
 
   } catch (error) {
     console.error("❌ Paystack verification error:", error);
