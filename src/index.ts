@@ -173,6 +173,62 @@ app.post("/create-trial-subscription", async (req, res) => {
 });
 
 
+// 🔐 To verify Paystack signature
+import crypto from 'crypto';
+
+app.post("/paystack/webhook", express.json(), async (req, res): Promise<void> => {
+
+  const secret= process.env.PAYSTACK_SECRET_KEY!;
+  const hash = crypto
+    .createHmac("sha512", secret)
+    .update(JSON.stringify(req.body))
+    .digest("hex");
+
+  if (hash !== req.headers['x-paystack-signature']) {
+    res.status(401).send("Invalid signature");
+    return;
+  }
+
+    // 👇 Log the full webhook payload
+  console.log("🔔 Webhook received:");
+  console.dir(req.body, { depth: null });
+
+  const event = req.body;
+  console.log("📦 Paystack Event:", event.event);
+
+  if (event.event === "subscription.create" || event.event === "charge.success") {
+    const customerEmail = event.data.customer.email;
+    const planName = event.data.plan?.name?.toLowerCase() || "";
+    
+    // Detect duration from plan name (e.g., "7days trial")
+    let durationDays = 30;
+    if (planName.includes("7")) durationDays = 7;
+    else if (planName.includes("30")) durationDays = 30;
+    else if (planName.includes("year")) durationDays = 365;
+
+    const expiresAt = Math.floor(Date.now() / 1000) + durationDays * 86400;
+
+    try {
+      const docRef = await db.collection("tokens").add({
+        email: customerEmail,
+        deviceId: "",
+        expiresAt,
+        isRadioOff: false,
+        isTrial: planName.includes("7"),
+      });
+
+      console.log("✅ Firestore saved for:", customerEmail);
+    } catch (err) {
+      console.error("❌ Firestore error:", err);
+    }
+  }
+
+  res.sendStatus(200);
+});
+
+
+
+
 
 
 
