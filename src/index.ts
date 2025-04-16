@@ -3,10 +3,8 @@ import Stripe from "stripe";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import dotenv from "dotenv";
-import axios from 'axios';
-import cors from 'cors';
-
-
+import axios from "axios";
+import cors from "cors";
 
 dotenv.config();
 
@@ -26,10 +24,11 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 const app = express();
 
-
 ///////////////////////////////////////
 // Stripe requires the raw body to validate webhook signatures
-app.post("/webhook",express.raw({ type: "application/json" }),
+app.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
   async (req: Request, res: Response): Promise<void> => {
     const sig = req.headers["stripe-signature"] as string | undefined;
 
@@ -89,13 +88,13 @@ app.post("/webhook",express.raw({ type: "application/json" }),
 
 app.use(express.json());
 
-
-
 // Allow requests from your frontend domain
-app.use(cors({
-  origin: 'https://subscribe.lamboliveagency.com',
-  methods: ['GET', 'POST'],
-}))
+app.use(
+  cors({
+    origin: "https://subscribe.lamboliveagency.com",
+    methods: ["GET", "POST"],
+  })
+);
 
 ///////////////////////////////////////
 
@@ -104,7 +103,9 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
   const { session_id } = req.query;
 
   if (!session_id || typeof session_id !== "string") {
-    return res.status(400).json({ success: false, message: "Session ID is required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Session ID is required" });
   }
 
   try {
@@ -118,15 +119,20 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
     };
 
     // Query Firestore using the email to get the document ID
-    const userQuerySnapshot = await db.collection("tokens").where("email", "==", customerDetails.email).get();
+    const userQuerySnapshot = await db
+      .collection("tokens")
+      .where("email", "==", customerDetails.email)
+      .get();
 
     if (userQuerySnapshot.empty) {
-      return res.status(404).json({ success: false, message: "No user found with this email" });
+      return res
+        .status(404)
+        .json({ success: false, message: "No user found with this email" });
     }
 
     // Assuming there's only one document per email
     const userDoc = userQuerySnapshot.docs[0]; // Get the first matching document
-    const documentId = userDoc.id;  // Get the document ID
+    const documentId = userDoc.id; // Get the document ID
 
     // Combine Firestore document ID with the customer details
     const result = {
@@ -138,90 +144,91 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
     res.json({ success: true, customerDetails: result });
   } catch (error) {
     console.error("Error fetching session or Firestore document:", error);
-    res.status(500).json({ success: false, message: "Error fetching session or Firestore document" });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching session or Firestore document",
+    });
   }
-
 });
 
+app.get(
+  "/api/paystack-confirmation",
+  async (req: Request, res: Response): Promise<any> => {
+    const { reference } = req.query;
 
+    if (!reference || typeof reference !== "string") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Reference is required" });
+    }
 
+    try {
+      // Verify the Paystack transaction using the reference
+      const paystackRes = await axios.get(
+        `https://api.paystack.co/transaction/verify/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          },
+        }
+      );
 
-app.get("/api/paystack-confirmation", async (req: Request, res: Response): Promise<any> => {
-  const { reference } = req.query;
+      const email = (paystackRes.data as any)?.data?.customer?.email;
+      const name = (paystackRes.data as any)?.data?.customer?.name;
 
-  if (!reference || typeof reference !== "string") {
-    return res.status(400).json({ success: false, message: "Reference is required" });
-  }
-
-  try {
-    // Verify the Paystack transaction using the reference
-    const paystackRes = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-      },
-    });
-
-
-
-
-
-    const email = (paystackRes.data as { customer: { email: string } }).customer.email;
-    const name = (paystackRes.data as { name: string }).name;
-    console.log(email)
-    console.log(name)
+      // const email = (paystackRes.data as { customer: { email: string } })
+      //   .customer.email;
+      // const name = (paystackRes.data as { name: string }).name;
+      // console.log(email);
+      // console.log(name);
 
       // Extract customer information
-    const paystackApiDetails = {
-      name: name,
-      email: email,
-    };
+      const paystackApiDetails = {
+        name: name,
+        email: email,
+      };
 
+      // const email = paystackRes.data.customer.email;
+      // const name = paystackRes.data.reference;
 
-    // const email = paystackRes.data.customer.email;
-    // const name = paystackRes.data.reference;
+      if (!email) {
+        return res.status(404).json({
+          success: false,
+          message: "Customer email not found in Paystack data",
+        });
+      }
 
+      // Lookup Firestore for the token using the email
+      const userQuerySnapshot = await db
+        .collection("tokens")
+        .where("email", "==", email)
+        .get();
 
-    if (!email) {
-      return res.status(404).json({ success: false, message: "Customer email not found in Paystack data" });
+      if (userQuerySnapshot.empty) {
+        return res.status(404).json({
+          success: false,
+          message: "No user found with this email in Firestore",
+        });
+      }
+
+      const userDoc = userQuerySnapshot.docs[0];
+      const documentId = userDoc.id;
+
+      const result = {
+        ...paystackApiDetails,
+        documentId: documentId, // Add document ID to the response
+      };
+
+      res.json({ success: true, paystackApiDetails: result });
+    } catch (error) {
+      console.error("❌ Paystack verification error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error verifying Paystack reference or querying Firestore",
+      });
     }
-
-    // Lookup Firestore for the token using the email
-    const userQuerySnapshot = await db.collection("tokens").where("email", "==", email).get();
-
-    if (userQuerySnapshot.empty) {
-      return res.status(404).json({ success: false, message: "No user found with this email in Firestore" });
-    }
-
-    const userDoc = userQuerySnapshot.docs[0];
-    const documentId = userDoc.id;
-
-   
-
-    const result = {
-      ...paystackApiDetails,
-      documentId: documentId, // Add document ID to the response
-    };
-
-
-    res.json({ success: true, paystackApiDetails: result });
-
-  } catch (error) {
-    console.error("❌ Paystack verification error:", error);
-    res.status(500).json({ success: false, message: "Error verifying Paystack reference or querying Firestore" });
   }
-});
-
-
-
-
-
-
-
-
-
-
-
-
+);
 
 app.post("/create-trial-subscription", async (req, res) => {
   try {
@@ -250,64 +257,63 @@ app.post("/create-trial-subscription", async (req, res) => {
   }
 });
 
-
 // 🔐 To verify Paystack signature
-import crypto from 'crypto';
+import crypto from "crypto";
 
-app.post("/paystack/webhook", express.json(), async (req, res): Promise<void> => {
+app.post(
+  "/paystack/webhook",
+  express.json(),
+  async (req, res): Promise<void> => {
+    const secret = process.env.PAYSTACK_SECRET_KEY!;
+    const hash = crypto
+      .createHmac("sha512", secret)
+      .update(JSON.stringify(req.body))
+      .digest("hex");
 
-  const secret= process.env.PAYSTACK_SECRET_KEY!;
-  const hash = crypto
-    .createHmac("sha512", secret)
-    .update(JSON.stringify(req.body))
-    .digest("hex");
-
-  if (hash !== req.headers['x-paystack-signature']) {
-    res.status(401).send("Invalid signature");
-    return;
-  }
+    if (hash !== req.headers["x-paystack-signature"]) {
+      res.status(401).send("Invalid signature");
+      return;
+    }
 
     // 👇 Log the full webhook payload
-  console.log("🔔 Webhook received:");
-  console.dir(req.body, { depth: null });
+    console.log("🔔 Webhook received:");
+    console.dir(req.body, { depth: null });
 
-  const event = req.body;
-  console.log("📦 Paystack Event:", event.event);
+    const event = req.body;
+    console.log("📦 Paystack Event:", event.event);
 
-  if (event.event === "subscription.create" || event.event === "charge.success") {
-    const customerEmail = event.data.customer.email;
-    const planName = event.data.plan?.name?.toLowerCase() || "";
-    
-    // Detect duration from plan name (e.g., "7days trial")
-    let durationDays = 30;
-    if (planName.includes("7")) durationDays = 7;
-    else if (planName.includes("30")) durationDays = 30;
-    else if (planName.includes("year")) durationDays = 365;
+    if (
+      event.event === "subscription.create" ||
+      event.event === "charge.success"
+    ) {
+      const customerEmail = event.data.customer.email;
+      const planName = event.data.plan?.name?.toLowerCase() || "";
 
-    const expiresAt = Math.floor(Date.now() / 1000) + durationDays * 86400;
+      // Detect duration from plan name (e.g., "7days trial")
+      let durationDays = 30;
+      if (planName.includes("7")) durationDays = 7;
+      else if (planName.includes("30")) durationDays = 30;
+      else if (planName.includes("year")) durationDays = 365;
 
-    try {
-      const docRef = await db.collection("tokens").add({
-        email: customerEmail,
-        deviceId: "",
-        expiresAt,
-        isRadioOff: false,
-        isTrial: planName.includes("7"),
-      });
+      const expiresAt = Math.floor(Date.now() / 1000) + durationDays * 86400;
 
-      console.log("✅ Firestore saved for:", customerEmail);
-    } catch (err) {
-      console.error("❌ Firestore error:", err);
+      try {
+        const docRef = await db.collection("tokens").add({
+          email: customerEmail,
+          deviceId: "",
+          expiresAt,
+          isRadioOff: false,
+          isTrial: planName.includes("7"),
+        });
+
+        console.log("✅ Firestore saved for:", customerEmail);
+      } catch (err) {
+        console.error("❌ Firestore error:", err);
+      }
     }
+
+    res.sendStatus(200);
   }
-
-  res.sendStatus(200);
-});
-
-
-
-
-
-
+);
 
 app.listen(3000, () => console.log("Running on http://localhost:3000"));
