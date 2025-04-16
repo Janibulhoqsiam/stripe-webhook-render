@@ -3,7 +3,9 @@ import Stripe from "stripe";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import dotenv from "dotenv";
+import axios from 'axios';
 import cors from 'cors';
+
 
 
 dotenv.config();
@@ -139,9 +141,81 @@ app.get("/api/thank-you", async (req: Request, res: Response): Promise<any> => {
     res.status(500).json({ success: false, message: "Error fetching session or Firestore document" });
   }
 
-}
+});
 
-);
+
+
+
+app.get("/api/paystack-confirmation", async (req: Request, res: Response): Promise<any> => {
+  const { reference } = req.query;
+
+  if (!reference || typeof reference !== "string") {
+    return res.status(400).json({ success: false, message: "Reference is required" });
+  }
+
+  try {
+    // Verify the Paystack transaction using the reference
+    const paystackRes = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+      },
+    });
+
+
+
+    const email = (paystackRes.data as { customer: { email: string } }).customer.email;
+    const name = (paystackRes.data as { name: string }).name;
+
+      // Extract customer information
+    const paystackApiDetails = {
+      name: name,
+      email: email,
+    };
+
+
+    // const email = paystackRes.data.customer.email;
+    // const name = paystackRes.data.reference;
+
+
+    if (!email) {
+      return res.status(404).json({ success: false, message: "Customer email not found in Paystack data" });
+    }
+
+    // Lookup Firestore for the token using the email
+    const userQuerySnapshot = await db.collection("tokens").where("email", "==", email).get();
+
+    if (userQuerySnapshot.empty) {
+      return res.status(404).json({ success: false, message: "No user found with this email in Firestore" });
+    }
+
+    const userDoc = userQuerySnapshot.docs[0];
+    const documentId = userDoc.id;
+
+   
+
+    const result = {
+      ...paystackApiDetails,
+      documentId: documentId, // Add document ID to the response
+    };
+
+
+    res.json({ success: true, customerDetails: result });
+
+  } catch (error) {
+    console.error("❌ Paystack verification error:", error);
+    res.status(500).json({ success: false, message: "Error verifying Paystack reference or querying Firestore" });
+  }
+});
+
+
+
+
+
+
+
+
+
+
 
 
 
