@@ -174,7 +174,8 @@ app.get(
       );
 
       const email = (paystackRes.data as any)?.data?.customer?.email;
-      const name = (paystackRes.data as any)?.data?.customer?.name;
+      const first_name = (paystackRes.data as any)?.data?.customer?.first_name;
+      const last_name = (paystackRes.data as any)?.data?.customer?.last_name;
 
       // const email = (paystackRes.data as { customer: { email: string } })
       //   .customer.email;
@@ -184,7 +185,7 @@ app.get(
 
       // Extract customer information
       const paystackApiDetails = {
-        name: name,
+        name: first_name + last_name,
         email: email,
       };
 
