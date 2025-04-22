@@ -91,7 +91,7 @@ app.use(express.json());
 // Allow requests from your frontend domain
 app.use(
   cors({
-    origin: "https://subscribe.lamboliveagency.com",
+    origin: "*",
     methods: ["GET", "POST"],
   })
 );
