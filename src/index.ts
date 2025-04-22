@@ -112,6 +112,7 @@ app.post("/api/create-dummy-user", async (req, res): Promise<void> => {
   } catch (error) {
     console.error("Error creating document:", error);
     res.status(500).json({ error: "Internal Server Error" });
+    return;
   }
 });
 
@@ -260,6 +261,7 @@ app.get(
 
 app.get("/ping", (req: Request, res: Response): void => {
   res.status(200).send("ok");
+  return;
 });
 
 app.post("/create-trial-subscription", async (req, res) => {
