@@ -86,6 +86,8 @@ app.post(
   }
 );
 
+app.use(express.json());
+
 app.post("/api/create-dummy-user", async (req, res): Promise<void> => {
   const { email, customId } = req.body;
 
@@ -112,8 +114,6 @@ app.post("/api/create-dummy-user", async (req, res): Promise<void> => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-app.use(express.json());
 
 // Allow requests from your frontend domain
 // app.use(
