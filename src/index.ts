@@ -231,6 +231,10 @@ app.get(
   }
 );
 
+app.get("/ping", (req: Request, res: Response): void => {
+  res.status(200).send("ok");
+});
+
 app.post("/create-trial-subscription", async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
@@ -356,12 +360,10 @@ app.post(
     const isoString = `${date}T${time}:00`;
     const ms = Date.parse(isoString);
     if (isNaN(ms) || ms <= Date.now()) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "Invalid or past date/time provided",
-        });
+      res.status(400).json({
+        success: false,
+        message: "Invalid or past date/time provided",
+      });
       return;
     }
     const expiresAt = Math.floor(ms / 1000);
