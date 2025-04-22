@@ -333,8 +333,10 @@ app.post("/api/create-dummy-user", async (req, res): Promise<void> => {
     const docRef = db.collection("tokens").doc(customId); // custom ID here
     await docRef.set({
       email,
-      token,
-      createdAt: new Date(),
+      deviceId: "",
+      expiresAt: 12344343434,
+      isRadioOff: false,
+      isTrial: false,
     });
 
     res
