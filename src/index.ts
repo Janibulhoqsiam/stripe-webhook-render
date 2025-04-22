@@ -87,16 +87,14 @@ app.post(
 );
 
 app.post("/api/create-dummy-user", async (req, res): Promise<void> => {
-  const { email, token, customId } = req.body;
+  const { email, customId } = req.body;
 
-  if (!email || !token || !customId) {
+  if (!email || !customId) {
     res.status(400).json({ error: "Missing required fields" });
     return;
   }
 
   try {
-    console.log("Incoming data:", { email, token, customId });
-
     const docRefid = db.collection("tokens").doc(customId);
     await docRefid.set({
       email,
@@ -106,16 +104,12 @@ app.post("/api/create-dummy-user", async (req, res): Promise<void> => {
       isTrial: false,
     });
 
-    console.log("Successfully created document with ID:", customId);
-
     res
       .status(200)
       .json({ success: true, message: "User created with custom ID" });
-  } catch (error: any) {
-    console.error("Error creating document:", error.message, error.stack);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", details: error.message });
+  } catch (error) {
+    console.error("Error creating document:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -353,38 +347,5 @@ app.post(
     res.sendStatus(200);
   }
 );
-
-app.post("/api/create-dummy-user", async (req, res): Promise<void> => {
-  const { email, token, customId } = req.body;
-
-  if (!email || !token || !customId) {
-    res.status(400).json({ error: "Missing required fields" });
-    return;
-  }
-
-  try {
-    console.log("Incoming data:", { email, token, customId });
-
-    const docRefid = db.collection("tokens").doc(customId);
-    await docRefid.set({
-      email,
-      deviceId: "",
-      expiresAt: 12344343434,
-      isRadioOff: false,
-      isTrial: false,
-    });
-
-    console.log("Successfully created document with ID:", customId);
-
-    res
-      .status(200)
-      .json({ success: true, message: "User created with custom ID" });
-  } catch (error: any) {
-    console.error("Error creating document:", error.message, error.stack);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", details: error.message });
-  }
-});
 
 app.listen(3000, () => console.log("Running on http://localhost:3000"));
