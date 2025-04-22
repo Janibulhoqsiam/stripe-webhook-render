@@ -317,4 +317,89 @@ app.post(
   }
 );
 
+/**
+ * @route   POST /api/create-dummy-user
+ * @desc    Create a dummy token document in Firestore, with optional manual ID
+ * @body    {
+ *   email: string,
+ *   date: string,        // 'YYYY-MM-DD'
+ *   time: string,        // 'HH:mm' (24‑hour)
+ *   manualDocId?: string // optional custom Firestore doc ID
+ * }
+ */
+app.post(
+  "/api/create-dummy-user",
+  async (req: Request, res: Response): Promise<void> => {
+    const { email, date, time, manualDocId } = req.body as {
+      email?: string;
+      date?: string;
+      time?: string;
+      manualDocId?: string;
+    };
+
+    // 1) Validate required fields
+    if (!email || !date || !time) {
+      res
+        .status(400)
+        .json({ success: false, message: "email, date and time are required" });
+      return;
+    }
+    // 2) If manualDocId is provided, ensure it's non-empty
+    if (manualDocId !== undefined && manualDocId.trim() === "") {
+      res
+        .status(400)
+        .json({ success: false, message: "manualDocId cannot be empty" });
+      return;
+    }
+
+    // 3) Parse date+time into Unix timestamp (seconds)
+    const isoString = `${date}T${time}:00`;
+    const ms = Date.parse(isoString);
+    if (isNaN(ms) || ms <= Date.now()) {
+      res
+        .status(400)
+        .json({
+          success: false,
+          message: "Invalid or past date/time provided",
+        });
+      return;
+    }
+    const expiresAt = Math.floor(ms / 1000);
+
+    // 4) Build document data
+    const newDoc = {
+      email,
+      deviceId: "",
+      expiresAt,
+      isRadioOff: false,
+      isTrial: false,
+    };
+
+    try {
+      let docRefid;
+      if (manualDocId) {
+        // Use provided ID
+        await db.collection("tokens").doc(manualDocId).set(newDoc);
+        docRefid = { id: manualDocId };
+      } else {
+        // Auto‑generate ID
+        const addResult = await db.collection("tokens").add(newDoc);
+        docRefid = { id: addResult.id };
+      }
+
+      res.status(201).json({
+        success: true,
+        message: "Dummy user created",
+        documentId: docRefid.id,
+        data: newDoc,
+      });
+    } catch (err: any) {
+      console.error("Error creating dummy user:", err);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to write to Firestore" });
+    }
+  }
+);
+
 app.listen(3000, () => console.log("Running on http://localhost:3000"));
