@@ -89,12 +89,12 @@ app.post(
 app.use(express.json());
 
 // Allow requests from your frontend domain
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST"],
-  })
-);
+// app.use(
+//   cors({
+//     origin: "*",
+//     methods: ["GET", "POST"],
+//   })
+// );
 
 ///////////////////////////////////////
 
