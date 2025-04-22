@@ -117,12 +117,16 @@ app.post("/api/create-dummy-user", async (req, res): Promise<void> => {
 });
 
 // Allow requests from your frontend domain
-// app.use(
-//   cors({
-//     origin: "*",
-//     methods: ["GET", "POST"],
-//   })
-// );
+app.use(
+  cors({
+    origin: [
+      "https://subscribe.lamboliveagency.com",
+      "https://console.cron-job.org",
+      "https://reqbin.com/",
+    ],
+    methods: ["GET", "POST"],
+  })
+);
 
 ///////////////////////////////////////
 
@@ -261,7 +265,6 @@ app.get(
 
 app.get("/ping", (req: Request, res: Response): void => {
   res.status(200).send("ok");
-  return;
 });
 
 app.post("/create-trial-subscription", async (req, res) => {
